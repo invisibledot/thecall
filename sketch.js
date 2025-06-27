@@ -53,6 +53,20 @@ function setup() {
   });
 
   document.getElementById('imageInput').addEventListener('change', handleFile);
+
+  // Add button event listeners
+  document.getElementById('drawTilesBtn').addEventListener('click', () => {
+    if (!sourceImage) return alert("Upload and place an image first.");
+    imagePlaced = true;
+    drawTiles();
+    redraw();
+    console.log("Tiles drawn.");
+  });
+
+  document.getElementById('saveImageBtn').addEventListener('click', () => {
+    if (!imagePlaced) return alert("Draw tiles first.");
+    saveFinalImage();
+  });
 }
 
 function draw() {
