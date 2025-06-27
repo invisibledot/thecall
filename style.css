@@ -32,6 +32,9 @@ label {
 input[type="range"] {
   width: 100%;
 }
+input#imageInput {
+  max-width: -moz-available;
+}
 button {
   margin-top: 15px;
   padding: 8px 12px;
