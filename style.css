@@ -1,9 +1,41 @@
 body {
-  margin: 0;
+  margin: 0; 
   background: #f6f2df;
   font-family: sans-serif;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
 canvas {
+display: block;
+margin: auto;
+}
+#sidebar {
+  width: 280px;
+  padding: 10px 20px;
+  background: #f6f2df;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+#canvasContainer {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f6f2df;
+}
+label {
   display: block;
-  margin: auto;
+  margin-top: 15px;
+  font-weight: bold;
+}
+input[type="range"] {
+  width: 100%;
+}
+button {
+  margin-top: 15px;
+  padding: 8px 12px;
+  width: 100%;
+  font-size: 1em;
+  cursor: pointer;
 }
