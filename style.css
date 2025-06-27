@@ -15,7 +15,7 @@ margin: auto;
   padding: 10px 20px;
   background: #f6f2df;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow-y: clip;
 }
 #canvasContainer {
   flex-grow: 1;
