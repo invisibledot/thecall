@@ -53,18 +53,26 @@ function setup() {
   });
 
   document.getElementById('imageInput').addEventListener('change', handleFile);
-
-  // Add button event listeners
-  document.getElementById('drawTilesBtn').addEventListener('click', () => {
-    if (!sourceImage) return alert("Upload and place an image first.");
+  // Draw Tiles button
+  const drawBtn = document.getElementById('drawTilesBtn');
+  drawBtn.addEventListener('click', () => {
+    if (!sourceImage) {
+      alert("Please upload an image first.");
+      return;
+    }
     imagePlaced = true;
     drawTiles();
     redraw();
     console.log("Tiles drawn.");
   });
 
-  document.getElementById('saveImageBtn').addEventListener('click', () => {
-    if (!imagePlaced) return alert("Draw tiles first.");
+  // Save Image button
+  const saveBtn = document.getElementById('saveImageBtn');
+  saveBtn.addEventListener('click', () => {
+    if (!imagePlaced) {
+      alert("Please draw tiles first.");
+      return;
+    }
     saveFinalImage();
   });
 }
