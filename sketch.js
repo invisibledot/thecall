@@ -2,25 +2,17 @@ let sourceImage;
 let tileLayer;
 
 const TILE_SIZE = 100;
-
 const previewWidth = 1200;
 const previewHeight = 628;
 
 const bgColor = '#f6f2df';
-const colors = [
-  '#ef3f35', // red
-  '#329758', // green
-  '#3356a3', // blue
-  '#fae25e', // yellow
-  '#f6f2df'  // bg color (optional "empty")
-];
+const colors = ['#ef3f35', '#329758', '#3356a3', '#fae25e', '#f6f2df'];
 
-let scale;      // zoom factor for image
+let scale;
 let minScale, maxScale;
-let imgX, imgY;   // image top-left position on canvas
+let imgX, imgY;
 
 let imagePlaced = false;
-
 let dragging = false;
 let dragOffsetX, dragOffsetY;
 
@@ -35,17 +27,17 @@ function setup() {
   tileLayer = createGraphics(previewWidth, previewHeight);
   noLoop();
 
-  // Load default image
+  // Load default image (optional)
   loadImage('source.jpg', img => {
     sourceImage = img;
     resetImagePositionAndScale();
     redraw();
   }, () => {
-    console.warn("source.jpg not found. Upload an image.");
+    console.warn("source.jpg not found, upload an image.");
   });
 
-  // Setup UI listeners
-  document.getElementById('grayscaleToggle').addEventListener('input', () => {
+  // Connect sidebar controls
+  document.getElementById('grayscaleToggle').addEventListener('change', () => {
     grayscaleMode = document.getElementById('grayscaleToggle').checked;
     if (imagePlaced) redraw();
   });
@@ -91,17 +83,17 @@ function getFilteredImage() {
     pg.filter(GRAY);
   }
 
-  addGrain(pg, grainLevel);
-  boostContrast(pg, contrastFactor);
+  addGrain(pg);
+  boostContrast(pg);
   multiplyBlend(pg, bgColor);
 
   return pg;
 }
 
-function addGrain(pg, level) {
+function addGrain(pg) {
   pg.loadPixels();
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    let noiseAmount = random(-level, level);
+    let noiseAmount = random(-grainLevel, grainLevel);
     for (let c = 0; c < 3; c++) {
       let val = pg.pixels[i + c] + noiseAmount;
       pg.pixels[i + c] = constrain(val, 0, 255);
@@ -110,12 +102,12 @@ function addGrain(pg, level) {
   pg.updatePixels();
 }
 
-function boostContrast(pg, factor) {
+function boostContrast(pg) {
   pg.loadPixels();
   for (let i = 0; i < pg.pixels.length; i += 4) {
     for (let c = 0; c < 3; c++) {
       let val = pg.pixels[i + c] / 255.0;
-      val = ((val - 0.5) * factor + 0.5) * 255;
+      val = ((val - 0.5) * contrastFactor + 0.5) * 255;
       pg.pixels[i + c] = constrain(val, 0, 255);
     }
   }
@@ -143,9 +135,10 @@ function mousePressed() {
   if (!imagePlaced && sourceImage) {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
-
-    if (mouseX >= imgX && mouseX <= imgX + scaledWidth &&
-        mouseY >= imgY && mouseY <= imgY + scaledHeight) {
+    if (
+      mouseX >= imgX && mouseX <= imgX + scaledWidth &&
+      mouseY >= imgY && mouseY <= imgY + scaledHeight
+    ) {
       dragging = true;
       dragOffsetX = mouseX - imgX;
       dragOffsetY = mouseY - imgY;
@@ -195,7 +188,7 @@ function keyPressed() {
     drawTiles();
     redraw();
     console.log("Image placed, tiles drawn.");
-  } 
+  }
   else if ((key === ' ' || keyCode === ENTER) && imagePlaced) {
     drawTiles();
     redraw();
@@ -256,21 +249,23 @@ function drawTiles() {
 }
 
 function handleFile(event) {
-  let file = event.target.files[0];
-  if (file && file.type.startsWith('image')) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.type.startsWith('image')) {
     let reader = new FileReader();
-    reader.onload = function(e) {
-      loadImage(e.target.result, img => {
+    reader.onload = function(evt) {
+      loadImage(evt.target.result, img => {
         sourceImage = img;
         resetImagePositionAndScale();
         imagePlaced = false;
         redraw();
-        console.log("New image loaded");
+        console.log('New image loaded');
       });
-    }
+    };
     reader.readAsDataURL(file);
   } else {
-    console.log("Not an image file!");
+    console.log('Not an image file!');
   }
 }
 
