@@ -34,12 +34,20 @@
   input[type="range"] {
     width: 100%;
   }
+  button {
+    margin-top: 15px;
+    padding: 8px 12px;
+    width: 100%;
+    font-size: 1em;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
 <div id="sidebar">
   <h2>Controls</h2>
+
   <label for="imageInput">Upload Image</label>
   <input type="file" id="imageInput" accept="image/*" />
 
@@ -50,6 +58,9 @@
 
   <label for="noise">Noise Level</label>
   <input type="range" id="noise" min="0" max="50" value="15" step="1" />
+
+  <button id="drawTilesBtn">Draw Tiles</button>
+  <button id="saveImageBtn">Save Image</button>
 </div>
 
 <div id="canvasContainer"></div>
