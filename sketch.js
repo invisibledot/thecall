@@ -94,7 +94,7 @@ if (!grayscaleMode) {
 function addGrain(pg) {
   pg.loadPixels();
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    let noiseAmount = random(-15, 15);
+    let noiseAmount = random(-30, 30);
     for (let c = 0; c < 3; c++) {
       let val = pg.pixels[i + c] + noiseAmount;
       pg.pixels[i + c] = constrain(val, 0, 255);
@@ -284,10 +284,16 @@ function drawTiles() {
 function handleFile(file) {
   if (file.type === 'image') {
     loadImage(file.data, img => {
+      // Resize very large images
+      const maxSize = 2000;
+      if (img.width > maxSize || img.height > maxSize) {
+        img.resize(maxSize, 0); // maintain aspect ratio
+        console.log("Image resized to:", img.width, img.height);
+      }
+
       sourceImage = img;
       resetImagePositionAndScale();
       imagePlaced = false;
-      tileLayer.clear();   // clear old tiles
       redraw();
       console.log('New image loaded');
     });
