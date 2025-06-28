@@ -74,16 +74,26 @@ button {
     max-height: 200px; /* limit height to avoid taking too much space */
     overflow-y: auto;
     padding: 10px;
-    order: 1; /* sidebar first */
+    order: 2; /* sidebar first */
   }
 
-  #canvasContainer {
-    flex-grow: 1;
-    min-height: 300px; /* minimum canvas area height */
-    order: 2;
-  }
-
-  canvas {
-    max-height: 70vh;
-  }
+#canvasContainer {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f6f2df;
+  overflow: hidden; /* hides anything overflowing */
+  max-width: 100vw; /* prevent container from exceeding viewport width */
+  box-sizing: border-box;
+  padding: 0 10px; /* optional padding */
+}
+canvas {
+  display: block;
+  width: 100%;    /* fill container width */
+  height: auto;   /* auto height to keep aspect ratio */
+  max-width: 1200px; /* prevent growing larger than native size */
+  max-height: 100vh; /* optional: prevent taller than viewport height */
+  box-sizing: border-box;
+}
 }
