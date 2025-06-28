@@ -36,23 +36,34 @@ function setup() {
     console.warn("source.jpg not found, upload an image.");
   });
 
+  // Debounce timeout variable for sliders
+  let redrawTimeout;
+
   // Connect sidebar controls
+
   document.getElementById('grayscaleToggle').addEventListener('change', () => {
     grayscaleMode = document.getElementById('grayscaleToggle').checked;
-    if (imagePlaced) redraw();
+    redraw();
   });
 
   document.getElementById('contrast').addEventListener('input', (e) => {
     contrastFactor = parseFloat(e.target.value);
-    if (imagePlaced) redraw();
+    clearTimeout(redrawTimeout);
+    redrawTimeout = setTimeout(() => {
+      if (imagePlaced) redraw();
+    }, 30);
   });
 
   document.getElementById('noise').addEventListener('input', (e) => {
     grainLevel = parseInt(e.target.value);
-    if (imagePlaced) redraw();
+    clearTimeout(redrawTimeout);
+    redrawTimeout = setTimeout(() => {
+      if (imagePlaced) redraw();
+    }, 30);
   });
 
   document.getElementById('imageInput').addEventListener('change', handleFile);
+
   // Draw Tiles button
   const drawBtn = document.getElementById('drawTilesBtn');
   drawBtn.addEventListener('click', () => {
