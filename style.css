@@ -63,11 +63,21 @@ button {
 
 /* Responsive adjustments for smaller screens */
 @media (max-width: 768px) {
-  body {
+ body {
     flex-direction: column; /* stack sidebar above canvas */
     height: auto;
     overflow: visible;
   }
+
+  html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  overflow-x: hidden; /* prevent horizontal scroll */
+  background: #f6f2df;
+  font-family: sans-serif;
+  height: 100vh;
+}
 
   #sidebar {
     width: 100%;
