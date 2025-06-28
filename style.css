@@ -69,16 +69,6 @@ button {
     overflow: visible;
   }
 
-  html, body {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  overflow-x: hidden; /* prevent horizontal scroll */
-  background: #f6f2df;
-  font-family: sans-serif;
-  height: 100vh;
-}
-
   #sidebar {
     width: 100%;
     max-height: 200px; /* limit height to avoid taking too much space */
@@ -86,25 +76,34 @@ button {
     padding: 10px;
     order: 2; /* sidebar second */
   }
+  
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f6f2df;
+  overflow: hidden;
+  font-family: sans-serif;
+}
+
+#canvasWrapper {
+  width: 100vw;
+  height: auto;
+  position: relative;
+  aspect-ratio: 1200 / 628;
+  overflow: hidden;
+}
 
 #canvasContainer {
-  flex-grow: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #f6f2df;
-  order: 1;
-  overflow: visible; /* allow canvas to fully show */
-  width: 100vw; /* fill viewport width */
-  box-sizing: border-box;
-  padding: 0 10px; /* optional padding */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
-canvas {
+
+#canvasContainer canvas {
+  width: 100%;
+  height: 100%;
   display: block;
-  width: 100%;    /* fill container width */
-  height: auto;   /* auto height to keep aspect ratio */
-  max-width: 1200px; /* prevent growing larger than native size */
-  max-height: 100vh; /* optional: prevent taller than viewport height */
-  box-sizing: border-box;
 }
 }
