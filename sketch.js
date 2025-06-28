@@ -21,10 +21,12 @@ let contrastFactor = 1.3;
 let grainLevel = 15;
 let tileDensity = 0.1;
 let useCircles = false;
+let tileVariationPercent = 0;
+let clusteringEnabled = false;
 
 function setup() {
   const canvas = createCanvas(previewWidth, previewHeight);
-  // canvas.parent('canvasContainer');
+  canvas.parent('canvasContainer');
 
   tileLayer = createGraphics(previewWidth, previewHeight);
   noLoop();
@@ -77,6 +79,20 @@ function setup() {
   }
 });
   
+  document.getElementById('tileVariation').addEventListener('input', (e) => {
+  tileVariationPercent = parseInt(e.target.value);
+  if (imagePlaced) {
+    drawTiles();
+    redraw();
+  }
+});
+  document.getElementById('clusterToggle').addEventListener('change', (e) => {
+  clusteringEnabled = e.target.checked;
+  if (imagePlaced) {
+    drawTiles();
+    redraw();
+  }
+});
   document.getElementById('circleToggle').addEventListener('change', (e) => {
   useCircles = e.target.checked;
   if (imagePlaced) {
@@ -187,7 +203,7 @@ function multiplyBlend(pg, bgColorStr) {
 }
 
 function mousePressed() {
-  if (!imagePlaced && sourceImage) {
+  if (sourceImage) {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
     if (
@@ -202,7 +218,7 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-  if (dragging && !imagePlaced) {
+  if (dragging) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
     redraw();
@@ -214,7 +230,7 @@ function mouseReleased() {
 }
 
 function mouseWheel(event) {
-  if (!imagePlaced && sourceImage) {
+  if (sourceImage) {
     let e = event.delta > 0 ? 1 : -1;
 
     let oldWidth = sourceImage.width * scale;
@@ -286,22 +302,45 @@ function drawTiles() {
 
   let cols = ceil(width / tileSize);
   let rows = ceil(height / tileSize);
-
-  let gridHeight = rows * tileSize;
-  let offsetYGrid = (height - gridHeight) / 2;
+  let grid = [];
 
   for (let y = 0; y < rows; y++) {
+    grid[y] = [];
     for (let x = 0; x < cols; x++) {
-      if (random(1) < tileDensity) {
+      let placeTile = false;
+
+      if (clusteringEnabled) {
+        // Simple clustering logic
+        let neighbors = 0;
+        if (x > 0 && grid[y][x - 1]) neighbors++;
+        if (y > 0 && grid[y - 1][x]) neighbors++;
+
+        let chance = tileDensity;
+        if (neighbors > 0) chance += 0.2;
+
+        placeTile = random(1) < chance;
+      } else {
+        // Pure random placement
+        placeTile = random(1) < tileDensity;
+      }
+
+      grid[y][x] = placeTile;
+
+      if (placeTile) {
         let px = x * tileSize;
-        let py = offsetYGrid + y * tileSize;
+        let py = y * tileSize;
 
         tileLayer.fill(colors[int(random(colors.length))]);
+
+        let variationAmount = tileSize * (tileVariationPercent / 100);
+        let sizeOffset = random(-variationAmount, variationAmount);
+        let actualSize = tileSize + sizeOffset;
+
         if (useCircles) {
-  tileLayer.ellipse(px + tileSize / 2, py + tileSize / 2, tileSize * 0.9);
-} else {
-  tileLayer.rect(px, py, tileSize, tileSize);
- }
+          tileLayer.ellipse(px + tileSize / 2, py + tileSize / 2, actualSize * 0.9);
+        } else {
+          tileLayer.rect(px, py, actualSize, actualSize);
+        }
       }
     }
   }
