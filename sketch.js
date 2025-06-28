@@ -19,10 +19,12 @@ let dragOffsetX, dragOffsetY;
 let grayscaleMode = true;
 let contrastFactor = 1.3;
 let grainLevel = 15;
+let tileDensity = 0.1;
+let useCircles = false;
 
 function setup() {
   const canvas = createCanvas(previewWidth, previewHeight);
-  canvas.parent('canvasContainer');
+  // canvas.parent('canvasContainer');
 
   tileLayer = createGraphics(previewWidth, previewHeight);
   noLoop();
@@ -61,6 +63,23 @@ function setup() {
       if (imagePlaced) redraw();
     }, 30);
   });
+  
+  document.getElementById('density').addEventListener('input', (e) => {
+  tileDensity = parseFloat(e.target.value);
+  if (imagePlaced) {
+    drawTiles();
+    redraw();
+  }
+})
+  
+  document.getElementById('circleToggle').addEventListener('change', (e) => {
+  useCircles = e.target.checked;
+  if (imagePlaced) {
+    drawTiles();
+    redraw();
+  }
+});
+
 
   document.getElementById('imageInput').addEventListener('change', handleFile);
 
@@ -270,12 +289,16 @@ function drawTiles() {
 
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      if (random(1) < 0.1) {
+      if (random(1) < tileDensity) {
         let px = x * TILE_SIZE;
         let py = offsetYGrid + y * TILE_SIZE;
 
         tileLayer.fill(colors[int(random(colors.length))]);
-        tileLayer.rect(px, py, TILE_SIZE, TILE_SIZE);
+        if (useCircles) {
+  tileLayer.ellipse(px + TILE_SIZE / 2, py + TILE_SIZE / 2, TILE_SIZE * 0.9);
+} else {
+  tileLayer.rect(px, py, TILE_SIZE, TILE_SIZE);
+ }
       }
     }
   }
