@@ -83,11 +83,11 @@ button {
   justify-content: center;
   align-items: center;
   background: #f6f2df;
-  overflow: hidden; /* hides anything overflowing */
-  max-width: 100vw; /* prevent container from exceeding viewport width */
+  order: 1;
+  overflow: visible; /* allow canvas to fully show */
+  width: 100vw; /* fill viewport width */
   box-sizing: border-box;
   padding: 0 10px; /* optional padding */
-  order: 1;
 }
 canvas {
   display: block;
