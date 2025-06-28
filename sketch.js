@@ -14,6 +14,7 @@ let imgX, imgY;
 let imagePlaced = false;
 let dragging = false;
 let dragOffsetX, dragOffsetY;
+let mouseWheelTimeout;
 
 let tileSize = 100;
 let grayscaleMode = true;
@@ -23,6 +24,19 @@ let tileDensity = 0.1;
 let useCircles = false;
 let tileVariationPercent = 0;
 let clusteringEnabled = false;
+
+let cachedFilteredImage = null;
+
+function invalidateFilterCache() {
+  cachedFilteredImage = null;
+}
+
+function updateFilteredImageAndRedraw() {
+  if (imagePlaced) {
+    cachedFilteredImage = getFilteredImage();
+    redraw();
+  }
+}
 
 function setup() {
   const canvas = createCanvas(previewWidth, previewHeight);
@@ -43,27 +57,29 @@ function setup() {
   // Debounce timeout variable for sliders
   let redrawTimeout;
 
-  // Connect sidebar controls
+  // Connect sidebar controls 
   document.getElementById('grayscaleToggle').addEventListener('change', () => {
-    grayscaleMode = document.getElementById('grayscaleToggle').checked;
-    redraw();
-  });
-  document.getElementById('contrast').addEventListener('input', (e) => {
-    contrastFactor = parseFloat(e.target.value);
-    clearTimeout(redrawTimeout);
-    redrawTimeout = setTimeout(() => {
-      if (imagePlaced) redraw();
-    }, 30);
-  });
-  document.getElementById('noise').addEventListener('input', (e) => {
-    grainLevel = parseInt(e.target.value);
-    clearTimeout(redrawTimeout);
-    redrawTimeout = setTimeout(() => {
-      if (imagePlaced) redraw();
-    }, 30);
-  });
+  grayscaleMode = document.getElementById('grayscaleToggle').checked;
+  invalidateFilterCache();
+  if (imagePlaced) cachedFilteredImage = getFilteredImage();
+  redraw();
+});
   
-  document.getElementById('tileSize').addEventListener('input', (e) => {
+document.getElementById('contrast').addEventListener('input', (e) => {
+  contrastFactor = parseFloat(e.target.value);
+  clearTimeout(redrawTimeout);
+  invalidateFilterCache();
+  redrawTimeout = setTimeout(updateFilteredImageAndRedraw, 30);
+});
+
+document.getElementById('noise').addEventListener('input', (e) => {
+  grainLevel = parseInt(e.target.value);
+  clearTimeout(redrawTimeout);
+  invalidateFilterCache();
+  redrawTimeout = setTimeout(updateFilteredImageAndRedraw, 30);
+});
+  
+document.getElementById('tileSize').addEventListener('input', (e) => {
   tileSize = parseInt(e.target.value);
   if (imagePlaced) {
     drawTiles();
@@ -71,7 +87,7 @@ function setup() {
   }
 });
   
-  document.getElementById('density').addEventListener('input', (e) => {
+document.getElementById('density').addEventListener('input', (e) => {
   tileDensity = parseFloat(e.target.value);
   if (imagePlaced) {
     drawTiles();
@@ -79,41 +95,45 @@ function setup() {
   }
 });
   
-  document.getElementById('tileVariation').addEventListener('input', (e) => {
+document.getElementById('tileVariation').addEventListener('input', (e) => {
   tileVariationPercent = parseInt(e.target.value);
   if (imagePlaced) {
     drawTiles();
     redraw();
   }
 });
-  document.getElementById('clusterToggle').addEventListener('change', (e) => {
+
+document.getElementById('clusterToggle').addEventListener('change', (e) => {
   clusteringEnabled = e.target.checked;
   if (imagePlaced) {
     drawTiles();
     redraw();
   }
 });
-  document.getElementById('circleToggle').addEventListener('change', (e) => {
+
+document.getElementById('circleToggle').addEventListener('change', (e) => {
   useCircles = e.target.checked;
   if (imagePlaced) {
     drawTiles();
     redraw();
   }
 });
+  
   document.getElementById('imageInput').addEventListener('change', handleFile);
 
   // Draw Tiles button
   const drawBtn = document.getElementById('drawTilesBtn');
-  drawBtn.addEventListener('click', () => {
-    if (!sourceImage) {
-      alert("Please upload an image first.");
-      return;
-    }
-    imagePlaced = true;
-    drawTiles();
-    redraw();
-    console.log("Tiles drawn.");
-  });
+drawBtn.addEventListener('click', () => {
+  if (!sourceImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+  imagePlaced = true;
+  cachedFilteredImage = getFilteredImage(); // cache it here
+  drawTiles();
+  redraw();
+  console.log("Tiles drawn.");
+});
 
   // Save Image button
   const saveBtn = document.getElementById('saveImageBtn');
@@ -133,9 +153,8 @@ function draw() {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
 
-    if (imagePlaced) {
-      let filteredImg = getFilteredImage();
-      image(filteredImg, imgX, imgY, scaledWidth, scaledHeight);
+    if (imagePlaced && cachedFilteredImage) {
+      image(cachedFilteredImage, imgX, imgY, scaledWidth, scaledHeight);
     } else {
       image(sourceImage, imgX, imgY, scaledWidth, scaledHeight);
     }
@@ -144,6 +163,10 @@ function draw() {
   if (imagePlaced) {
     image(tileLayer, 0, 0);
   }
+}
+
+function invalidateFilterCache() {
+  cachedFilteredImage = null;
 }
 
 function getFilteredImage() {
@@ -221,12 +244,14 @@ function mouseDragged() {
   if (dragging) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
-    redraw();
+    loop(); // Start updating
   }
 }
 
 function mouseReleased() {
   dragging = false;
+  noLoop(); // Stop updating
+  redraw(); // Ensure final frame is shown
 }
 
 function mouseWheel(event) {
@@ -248,7 +273,12 @@ function mouseWheel(event) {
     imgX = centerX - newWidth / 2;
     imgY = centerY - newHeight / 2;
 
-    redraw();
+    loop();   // Start updating
+    clearTimeout(mouseWheelTimeout);
+    mouseWheelTimeout = setTimeout(() => {
+      noLoop();  // Stop after zoom settles
+      redraw();  // Final frame
+    }, 100);
   }
 }
 
