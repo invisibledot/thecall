@@ -38,6 +38,18 @@ function updateFilteredImageAndRedraw() {
   }
 }
 
+function isMouseOverUI() {
+  const active = document.activeElement;
+  return (
+    active && (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'BUTTON' ||
+      active.tagName === 'SELECT' ||
+      active.tagName === 'TEXTAREA'
+    )
+  );
+}
+
 function setup() {
   const canvas = createCanvas(previewWidth, previewHeight);
   canvas.parent('canvasContainer');
@@ -221,6 +233,8 @@ function multiplyBlend(pg, bgColorStr) {
 }
 
 function mousePressed() {
+  if (isMouseOverUI()) return;
+
   if (sourceImage) {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
@@ -236,10 +250,10 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-  if (dragging) {
+  if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
-    loop(); // Start updating
+    loop();
   }
 }
 
