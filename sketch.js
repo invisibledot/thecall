@@ -1,7 +1,6 @@
 let sourceImage;
 let tileLayer;
 
-const TILE_SIZE = 100;
 const previewWidth = 1200;
 const previewHeight = 628;
 
@@ -16,6 +15,7 @@ let imagePlaced = false;
 let dragging = false;
 let dragOffsetX, dragOffsetY;
 
+let tileSize = 100;
 let grayscaleMode = true;
 let contrastFactor = 1.3;
 let grainLevel = 15;
@@ -42,12 +42,10 @@ function setup() {
   let redrawTimeout;
 
   // Connect sidebar controls
-
   document.getElementById('grayscaleToggle').addEventListener('change', () => {
     grayscaleMode = document.getElementById('grayscaleToggle').checked;
     redraw();
   });
-
   document.getElementById('contrast').addEventListener('input', (e) => {
     contrastFactor = parseFloat(e.target.value);
     clearTimeout(redrawTimeout);
@@ -55,7 +53,6 @@ function setup() {
       if (imagePlaced) redraw();
     }, 30);
   });
-
   document.getElementById('noise').addEventListener('input', (e) => {
     grainLevel = parseInt(e.target.value);
     clearTimeout(redrawTimeout);
@@ -64,13 +61,21 @@ function setup() {
     }, 30);
   });
   
+  document.getElementById('tileSize').addEventListener('input', (e) => {
+  tileSize = parseInt(e.target.value);
+  if (imagePlaced) {
+    drawTiles();
+    redraw();
+  }
+});
+  
   document.getElementById('density').addEventListener('input', (e) => {
   tileDensity = parseFloat(e.target.value);
   if (imagePlaced) {
     drawTiles();
     redraw();
   }
-})
+});
   
   document.getElementById('circleToggle').addEventListener('change', (e) => {
   useCircles = e.target.checked;
@@ -79,8 +84,6 @@ function setup() {
     redraw();
   }
 });
-
-
   document.getElementById('imageInput').addEventListener('change', handleFile);
 
   // Draw Tiles button
@@ -281,23 +284,23 @@ function drawTiles() {
   tileLayer.clear();
   tileLayer.noStroke();
 
-  let cols = ceil(width / TILE_SIZE);
-  let rows = ceil(height / TILE_SIZE);
+  let cols = ceil(width / tileSize);
+  let rows = ceil(height / tileSize);
 
-  let gridHeight = rows * TILE_SIZE;
+  let gridHeight = rows * tileSize;
   let offsetYGrid = (height - gridHeight) / 2;
 
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       if (random(1) < tileDensity) {
-        let px = x * TILE_SIZE;
-        let py = offsetYGrid + y * TILE_SIZE;
+        let px = x * tileSize;
+        let py = offsetYGrid + y * tileSize;
 
         tileLayer.fill(colors[int(random(colors.length))]);
         if (useCircles) {
-  tileLayer.ellipse(px + TILE_SIZE / 2, py + TILE_SIZE / 2, TILE_SIZE * 0.9);
+  tileLayer.ellipse(px + tileSize / 2, py + tileSize / 2, tileSize * 0.9);
 } else {
-  tileLayer.rect(px, py, TILE_SIZE, TILE_SIZE);
+  tileLayer.rect(px, py, tileSize, tileSize);
  }
       }
     }
