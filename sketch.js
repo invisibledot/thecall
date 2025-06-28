@@ -61,10 +61,9 @@ function setup() {
   document.getElementById('grayscaleToggle').addEventListener('change', () => {
   grayscaleMode = document.getElementById('grayscaleToggle').checked;
   invalidateFilterCache();
-  if (imagePlaced) cachedFilteredImage = getFilteredImage();
-  redraw();
+  updateFilteredImageAndRedraw();
 });
-  
+
 document.getElementById('contrast').addEventListener('input', (e) => {
   contrastFactor = parseFloat(e.target.value);
   clearTimeout(redrawTimeout);
@@ -78,7 +77,7 @@ document.getElementById('noise').addEventListener('input', (e) => {
   invalidateFilterCache();
   redrawTimeout = setTimeout(updateFilteredImageAndRedraw, 30);
 });
-  
+
 document.getElementById('tileSize').addEventListener('input', (e) => {
   tileSize = parseInt(e.target.value);
   if (imagePlaced) {
@@ -86,7 +85,7 @@ document.getElementById('tileSize').addEventListener('input', (e) => {
     redraw();
   }
 });
-  
+
 document.getElementById('density').addEventListener('input', (e) => {
   tileDensity = parseFloat(e.target.value);
   if (imagePlaced) {
@@ -94,7 +93,7 @@ document.getElementById('density').addEventListener('input', (e) => {
     redraw();
   }
 });
-  
+
 document.getElementById('tileVariation').addEventListener('input', (e) => {
   tileVariationPercent = parseInt(e.target.value);
   if (imagePlaced) {
@@ -118,32 +117,28 @@ document.getElementById('circleToggle').addEventListener('change', (e) => {
     redraw();
   }
 });
-  
-  document.getElementById('imageInput').addEventListener('change', handleFile);
 
-  // Draw Tiles button
-  const drawBtn = document.getElementById('drawTilesBtn');
-drawBtn.addEventListener('click', () => {
+document.getElementById('imageInput').addEventListener('change', handleFile);
+
+document.getElementById('drawTilesBtn').addEventListener('click', () => {
   if (!sourceImage) {
     alert("Please upload an image first.");
     return;
   }
   imagePlaced = true;
-  cachedFilteredImage = getFilteredImage(); // cache it here
+  cachedFilteredImage = getFilteredImage();
   drawTiles();
   redraw();
   console.log("Tiles drawn.");
 });
 
-  // Save Image button
-  const saveBtn = document.getElementById('saveImageBtn');
-  saveBtn.addEventListener('click', () => {
-    if (!imagePlaced) {
-      alert("Please draw tiles first.");
-      return;
-    }
-    saveFinalImage();
-  });
+document.getElementById('saveImageBtn').addEventListener('click', () => {
+  if (!imagePlaced) {
+    alert("Please draw tiles first.");
+    return;
+  }
+  saveFinalImage();
+});
 }
 
 function draw() {
@@ -153,11 +148,11 @@ function draw() {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
 
-    if (imagePlaced && cachedFilteredImage) {
-      image(cachedFilteredImage, imgX, imgY, scaledWidth, scaledHeight);
-    } else {
-      image(sourceImage, imgX, imgY, scaledWidth, scaledHeight);
-    }
+    let imgToDraw = (imagePlaced && cachedFilteredImage)
+      ? cachedFilteredImage
+      : sourceImage;
+
+    image(imgToDraw, imgX, imgY, scaledWidth, scaledHeight);
   }
 
   if (imagePlaced) {
