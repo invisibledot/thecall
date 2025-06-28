@@ -233,7 +233,8 @@ function multiplyBlend(pg, bgColorStr) {
 }
 
 function mousePressed() {
-  if (isMouseOverUI()) return;
+  // Only start dragging if not touching the sidebar
+  if (document.elementFromPoint(mouseX, mouseY)?.closest('#sidebar')) return;
 
   if (sourceImage) {
     let scaledWidth = sourceImage.width * scale;
@@ -264,6 +265,21 @@ function mouseReleased() {
 }
 
 function mouseWheel(event) {
+  // If pointer is inside sidebar, ignore zoom
+  const sidebar = document.getElementById('sidebar');
+  const rect = sidebar.getBoundingClientRect();
+  
+  if (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  ) {
+    // Prevent zoom when scrolling inside sidebar
+    return false;  // prevents default and stops propagation in p5.js
+  }
+
+  // Otherwise handle zoom normally
   if (sourceImage) {
     let e = event.delta > 0 ? 1 : -1;
 
@@ -289,6 +305,8 @@ function mouseWheel(event) {
       redraw();  // Final frame
     }, 100);
   }
+  
+  return false; // prevent page scrolling
 }
 
 function keyPressed() {
