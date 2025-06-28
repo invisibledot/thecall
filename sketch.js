@@ -2,51 +2,79 @@ let sourceImage;
 let tileLayer;
 
 const TILE_SIZE = 100;
-
 const previewWidth = 1200;
 const previewHeight = 628;
 
 const bgColor = '#f6f2df';
-const colors = [
-  '#ef3f35', // red
-  '#329758', // green
-  '#3356a3', // blue
-  '#fae25e', // yellow
-  '#f6f2df'  // bg color (optional "empty")
-];
+const colors = ['#ef3f35', '#329758', '#3356a3', '#fae25e', '#f6f2df'];
 
-let scale;      // zoom factor for image
+let scale;
 let minScale, maxScale;
-let imgX, imgY;   // image top-left position on canvas
+let imgX, imgY;
 
 let imagePlaced = false;
-
 let dragging = false;
 let dragOffsetX, dragOffsetY;
 
 let grayscaleMode = true;
-
-// File input element for uploading images
-let imgInput;
+let contrastFactor = 1.3;
+let grainLevel = 15;
 
 function setup() {
-  createCanvas(previewWidth, previewHeight);
+  const canvas = createCanvas(previewWidth, previewHeight);
+  canvas.parent('canvasContainer');
 
-  sourceImage = loadImage('source.jpg', () => {
+  tileLayer = createGraphics(previewWidth, previewHeight);
+  noLoop();
+
+  // Load default image (optional)
+  loadImage('source.jpg', img => {
+    sourceImage = img;
     resetImagePositionAndScale();
     redraw();
   }, () => {
-    console.error("source.jpg not found. Upload a new image.");
+    console.warn("source.jpg not found, upload an image.");
   });
 
-  tileLayer = createGraphics(previewWidth, previewHeight);
+  // Connect sidebar controls
+  document.getElementById('grayscaleToggle').addEventListener('change', () => {
+    grayscaleMode = document.getElementById('grayscaleToggle').checked;
+    if (imagePlaced) redraw();
+  });
 
-  noStroke();
-  noLoop();
+  document.getElementById('contrast').addEventListener('input', (e) => {
+    contrastFactor = parseFloat(e.target.value);
+    if (imagePlaced) redraw();
+  });
 
-  // Create file input and position below canvas
-  imgInput = createFileInput(handleFile);
-  imgInput.position(10, height + 10);
+  document.getElementById('noise').addEventListener('input', (e) => {
+    grainLevel = parseInt(e.target.value);
+    if (imagePlaced) redraw();
+  });
+
+  document.getElementById('imageInput').addEventListener('change', handleFile);
+  // Draw Tiles button
+  const drawBtn = document.getElementById('drawTilesBtn');
+  drawBtn.addEventListener('click', () => {
+    if (!sourceImage) {
+      alert("Please upload an image first.");
+      return;
+    }
+    imagePlaced = true;
+    drawTiles();
+    redraw();
+    console.log("Tiles drawn.");
+  });
+
+  // Save Image button
+  const saveBtn = document.getElementById('saveImageBtn');
+  saveBtn.addEventListener('click', () => {
+    if (!imagePlaced) {
+      alert("Please draw tiles first.");
+      return;
+    }
+    saveFinalImage();
+  });
 }
 
 function draw() {
@@ -56,7 +84,6 @@ function draw() {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
 
-    // Draw image with grayscale toggle and filters if placed
     if (imagePlaced) {
       let filteredImg = getFilteredImage();
       image(filteredImg, imgX, imgY, scaledWidth, scaledHeight);
@@ -71,9 +98,7 @@ function draw() {
 }
 
 function getFilteredImage() {
-  // Create a graphics buffer for filters
   let pg = createGraphics(sourceImage.width, sourceImage.height);
-
   pg.image(sourceImage, 0, 0);
 
   if (grayscaleMode) {
@@ -87,14 +112,10 @@ function getFilteredImage() {
   return pg;
 }
 
-if (!grayscaleMode) {
-  reduceSaturation(pg, 0.5); // 50% saturation reduction (adjust as needed)
-}
-
 function addGrain(pg) {
   pg.loadPixels();
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    let noiseAmount = random(-30, 30);
+    let noiseAmount = random(-grainLevel, grainLevel);
     for (let c = 0; c < 3; c++) {
       let val = pg.pixels[i + c] + noiseAmount;
       pg.pixels[i + c] = constrain(val, 0, 255);
@@ -105,11 +126,10 @@ function addGrain(pg) {
 
 function boostContrast(pg) {
   pg.loadPixels();
-  const factor = 1.3; // contrast factor
   for (let i = 0; i < pg.pixels.length; i += 4) {
     for (let c = 0; c < 3; c++) {
       let val = pg.pixels[i + c] / 255.0;
-      val = ((val - 0.5) * factor + 0.5) * 255;
+      val = ((val - 0.5) * contrastFactor + 0.5) * 255;
       pg.pixels[i + c] = constrain(val, 0, 255);
     }
   }
@@ -119,43 +139,17 @@ function boostContrast(pg) {
 function multiplyBlend(pg, bgColorStr) {
   pg.loadPixels();
 
-  // Convert background color to RGB
   let bgCol = color(bgColorStr);
   let bgR = red(bgCol);
   let bgG = green(bgCol);
   let bgB = blue(bgCol);
 
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    // Multiply blend: (source * bg) / 255
-    pg.pixels[i] = (pg.pixels[i] * bgR) / 255;     // R
-    pg.pixels[i + 1] = (pg.pixels[i + 1] * bgG) / 255; // G
-    pg.pixels[i + 2] = (pg.pixels[i + 2] * bgB) / 255; // B
+    pg.pixels[i] = (pg.pixels[i] * bgR) / 255;
+    pg.pixels[i + 1] = (pg.pixels[i + 1] * bgG) / 255;
+    pg.pixels[i + 2] = (pg.pixels[i + 2] * bgB) / 255;
   }
 
-  pg.updatePixels();
-}
-
-function reduceSaturation(pg, amount) {
-  // amount: 0 = no change, 1 = fully desaturated (grayscale)
-  pg.loadPixels();
-  for (let i = 0; i < pg.pixels.length; i += 4) {
-    let r = pg.pixels[i];
-    let g = pg.pixels[i + 1];
-    let b = pg.pixels[i + 2];
-
-    // Convert RGB to HSL to isolate saturation
-    let c = rgbToHsl(r, g, b);
-
-    // Reduce saturation by "amount"
-    c[1] = c[1] * (1 - amount);
-
-    // Convert back to RGB
-    let rgb = hslToRgb(c[0], c[1], c[2]);
-
-    pg.pixels[i] = rgb[0];
-    pg.pixels[i + 1] = rgb[1];
-    pg.pixels[i + 2] = rgb[2];
-  }
   pg.updatePixels();
 }
 
@@ -163,9 +157,10 @@ function mousePressed() {
   if (!imagePlaced && sourceImage) {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
-
-    if (mouseX >= imgX && mouseX <= imgX + scaledWidth &&
-        mouseY >= imgY && mouseY <= imgY + scaledHeight) {
+    if (
+      mouseX >= imgX && mouseX <= imgX + scaledWidth &&
+      mouseY >= imgY && mouseY <= imgY + scaledHeight
+    ) {
       dragging = true;
       dragOffsetX = mouseX - imgX;
       dragOffsetY = mouseY - imgY;
@@ -215,7 +210,7 @@ function keyPressed() {
     drawTiles();
     redraw();
     console.log("Image placed, tiles drawn.");
-  } 
+  }
   else if ((key === ' ' || keyCode === ENTER) && imagePlaced) {
     drawTiles();
     redraw();
@@ -227,11 +222,6 @@ function keyPressed() {
       return;
     }
     saveFinalImage();
-  }
-  else if (key === 'g' || key === 'G') {
-    grayscaleMode = !grayscaleMode;
-    redraw();
-    console.log("Grayscale mode: " + (grayscaleMode ? "ON" : "OFF"));
   }
 }
 
@@ -280,23 +270,22 @@ function drawTiles() {
   }
 }
 
-// Handles image file upload from user
-function handleFile(file) {
-  if (file.type === 'image') {
-    loadImage(file.data, img => {
-      // Resize very large images
-      const maxSize = 2000;
-      if (img.width > maxSize || img.height > maxSize) {
-        img.resize(maxSize, 0); // maintain aspect ratio
-        console.log("Image resized to:", img.width, img.height);
-      }
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
 
-      sourceImage = img;
-      resetImagePositionAndScale();
-      imagePlaced = false;
-      redraw();
-      console.log('New image loaded');
-    });
+  if (file.type.startsWith('image')) {
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+      loadImage(evt.target.result, img => {
+        sourceImage = img;
+        resetImagePositionAndScale();
+        imagePlaced = false;
+        redraw();
+        console.log('New image loaded');
+      });
+    };
+    reader.readAsDataURL(file);
   } else {
     console.log('Not an image file!');
   }
@@ -313,50 +302,3 @@ function resetImagePositionAndScale() {
   imgX = (width - scaledWidth) / 2;
   imgY = (height - scaledHeight) / 2;
 }
-
-// Converts RGB (0-255) to HSL (H: 0-1, S: 0-1, L: 0-1)
-function rgbToHsl(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  let max = max3(r, g, b), min = min3(r, g, b);
-  let h, s, l = (max + min) / 2;
-
-  if (max === min) {
-    h = s = 0; // achromatic
-  } else {
-    let d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-  return [h, s, l];
-}
-
-function hslToRgb(h, s, l) {
-  let r, g, b;
-
-  if (s === 0) {
-    r = g = b = l; // achromatic
-  } else {
-    let hue2rgb = function(p, q, t) {
-      if(t < 0) t += 1;
-      if(t > 1) t -= 1;
-      if(t < 1/6) return p + (q - p) * 6 * t;
-      if(t < 1/2) return q;
-      if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    }
-    let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    let p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1/3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1/3);
-  }
-
-  return [r * 255, g * 255, b * 255];
-}
-
-function max3(a,b,c) { return (a>b && a>c) ? a : (b>c) ? b : c; }
-function min3(a,b,c) { return (a<b && a<c) ? a : (b<c) ? b : c; }
