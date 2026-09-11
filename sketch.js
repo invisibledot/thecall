@@ -1,7 +1,6 @@
 let sourceImage;
 let tileLayer;
 
-const TILE_SIZE = 100;
 const previewWidth = 1200;
 const previewHeight = 628;
 
@@ -15,11 +14,85 @@ let imgX, imgY;
 let imagePlaced = false;
 let dragging = false;
 let dragOffsetX, dragOffsetY;
+let mouseWheelTimeout;
 
+let tileSize = 100;
 let grayscaleMode = true;
 let contrastFactor = 1.3;
 let grainLevel = 15;
+let tileDensity = 0.1;
+let tileVariationPercent = 0;
+let clusteringEnabled = false;
 
+// 'none' | 'squares' | 'circles'
+let tileShape = 'none';
+
+let cachedFilteredImage = null;
+
+// Debounce handle shared across slider callbacks
+let redrawTimeout;
+
+// Pinch-zoom state for touch
+let lastPinchDist = null;
+
+// ---------------------------------------------------------------------------
+// Filter cache
+// ---------------------------------------------------------------------------
+function invalidateFilterCache() {
+  cachedFilteredImage = null;
+}
+
+function updateFilteredImageAndRedraw() {
+  if (imagePlaced) {
+    cachedFilteredImage = getFilteredImage();
+    redraw();
+  }
+}
+
+function isMouseOverUI() {
+  const active = document.activeElement;
+  return (
+    active && (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'BUTTON' ||
+      active.tagName === 'SELECT' ||
+      active.tagName === 'TEXTAREA'
+    )
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Enable / disable tile controls based on tileShape
+// ---------------------------------------------------------------------------
+function updateControlAvailability() {
+  const tileControlsDisabled = (tileShape === 'none');
+  const clusterDisabled = tileControlsDisabled; // clustering makes no sense without tiles
+
+  ['tileSize', 'density', 'tileVariation'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = tileControlsDisabled;
+  });
+
+  const clusterEl = document.getElementById('clusterToggle');
+  if (clusterEl) {
+    clusterEl.disabled = clusterDisabled;
+    // Visually grey out the label too
+    const label = clusterEl.closest('label');
+    if (label) label.style.opacity = clusterDisabled ? '0.5' : '1';
+  }
+
+  // Also grey the labels of the sliders for visual consistency
+  ['tileSize', 'density', 'tileVariation'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const label = document.querySelector(`label[for="${id}"]`);
+    if (label) label.style.opacity = tileControlsDisabled ? '0.5' : '1';
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
 function setup() {
   const canvas = createCanvas(previewWidth, previewHeight);
   canvas.parent('canvasContainer');
@@ -36,58 +109,100 @@ function setup() {
     console.warn("source.jpg not found, upload an image.");
   });
 
-  // Debounce timeout variable for sliders
-  let redrawTimeout;
-
-  // Connect sidebar controls
-
+  // --- Connect sidebar controls ---
   document.getElementById('grayscaleToggle').addEventListener('change', () => {
     grayscaleMode = document.getElementById('grayscaleToggle').checked;
-    redraw();
+    invalidateFilterCache();
+    updateFilteredImageAndRedraw();
   });
 
   document.getElementById('contrast').addEventListener('input', (e) => {
     contrastFactor = parseFloat(e.target.value);
     clearTimeout(redrawTimeout);
-    redrawTimeout = setTimeout(() => {
-      if (imagePlaced) redraw();
-    }, 30);
+    invalidateFilterCache();
+    redrawTimeout = setTimeout(updateFilteredImageAndRedraw, 30);
   });
 
   document.getElementById('noise').addEventListener('input', (e) => {
     grainLevel = parseInt(e.target.value);
     clearTimeout(redrawTimeout);
-    redrawTimeout = setTimeout(() => {
-      if (imagePlaced) redraw();
-    }, 30);
+    invalidateFilterCache();
+    redrawTimeout = setTimeout(updateFilteredImageAndRedraw, 30);
+  });
+
+  document.getElementById('tileSize').addEventListener('input', (e) => {
+    tileSize = parseInt(e.target.value);
+    if (imagePlaced) {
+      drawTiles();
+      redraw();
+    }
+  });
+
+  document.getElementById('density').addEventListener('input', (e) => {
+    tileDensity = parseFloat(e.target.value);
+    if (imagePlaced) {
+      drawTiles();
+      redraw();
+    }
+  });
+
+  document.getElementById('tileVariation').addEventListener('input', (e) => {
+    tileVariationPercent = parseInt(e.target.value);
+    if (imagePlaced) {
+      drawTiles();
+      redraw();
+    }
+  });
+
+  document.getElementById('clusterToggle').addEventListener('change', (e) => {
+    clusteringEnabled = e.target.checked;
+    if (imagePlaced) {
+      drawTiles();
+      redraw();
+    }
+  });
+
+  // Tile shape radios
+  document.querySelectorAll('input[name="tileShape"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      tileShape = e.target.value;
+      updateControlAvailability();
+      if (imagePlaced) {
+        drawTiles();
+        redraw();
+      }
+    });
   });
 
   document.getElementById('imageInput').addEventListener('change', handleFile);
 
-  // Draw Tiles button
-  const drawBtn = document.getElementById('drawTilesBtn');
-  drawBtn.addEventListener('click', () => {
+  document.getElementById('drawTilesBtn').addEventListener('click', () => {
     if (!sourceImage) {
       alert("Please upload an image first.");
       return;
     }
     imagePlaced = true;
+    cachedFilteredImage = getFilteredImage();
     drawTiles();
     redraw();
     console.log("Tiles drawn.");
   });
 
-  // Save Image button
-  const saveBtn = document.getElementById('saveImageBtn');
-  saveBtn.addEventListener('click', () => {
+  document.getElementById('saveImageBtn').addEventListener('click', () => {
     if (!imagePlaced) {
       alert("Please draw tiles first.");
       return;
     }
     saveFinalImage();
   });
+
+  // Initialize control state based on default tileShape ('none')
+  updateControlAvailability();
 }
 
+// ---------------------------------------------------------------------------
+// Draw
+// ---------------------------------------------------------------------------
 function draw() {
   background(bgColor);
 
@@ -95,12 +210,11 @@ function draw() {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
 
-    if (imagePlaced) {
-      let filteredImg = getFilteredImage();
-      image(filteredImg, imgX, imgY, scaledWidth, scaledHeight);
-    } else {
-      image(sourceImage, imgX, imgY, scaledWidth, scaledHeight);
-    }
+    let imgToDraw = (imagePlaced && cachedFilteredImage)
+      ? cachedFilteredImage
+      : sourceImage;
+
+    image(imgToDraw, imgX, imgY, scaledWidth, scaledHeight);
   }
 
   if (imagePlaced) {
@@ -108,6 +222,9 @@ function draw() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Filters
+// ---------------------------------------------------------------------------
 function getFilteredImage() {
   let pg = createGraphics(sourceImage.width, sourceImage.height);
   pg.image(sourceImage, 0, 0);
@@ -164,8 +281,35 @@ function multiplyBlend(pg, bgColorStr) {
   pg.updatePixels();
 }
 
+// ---------------------------------------------------------------------------
+// Zoom helper (shared by mouse wheel + pinch)
+// ---------------------------------------------------------------------------
+function zoomAt(newScale) {
+  newScale = constrain(newScale, minScale, maxScale);
+  if (newScale === scale) return;
+
+  let oldWidth = sourceImage.width * scale;
+  let oldHeight = sourceImage.height * scale;
+
+  let centerX = imgX + oldWidth / 2;
+  let centerY = imgY + oldHeight / 2;
+
+  scale = newScale;
+
+  let newWidth = sourceImage.width * scale;
+  let newHeight = sourceImage.height * scale;
+
+  imgX = centerX - newWidth / 2;
+  imgY = centerY - newHeight / 2;
+}
+
+// ---------------------------------------------------------------------------
+// Mouse input
+// ---------------------------------------------------------------------------
 function mousePressed() {
-  if (!imagePlaced && sourceImage) {
+  if (document.elementFromPoint(mouseX, mouseY)?.closest('#sidebar')) return;
+
+  if (sourceImage) {
     let scaledWidth = sourceImage.width * scale;
     let scaledHeight = sourceImage.height * scale;
     if (
@@ -180,44 +324,102 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-  if (dragging && !imagePlaced) {
+  if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
-    redraw();
+    loop();
   }
 }
 
 function mouseReleased() {
   dragging = false;
+  noLoop();
+  redraw();
 }
 
 function mouseWheel(event) {
-  if (!imagePlaced && sourceImage) {
-    let e = event.delta > 0 ? 1 : -1;
+  const sidebar = document.getElementById('sidebar');
+  const rect = sidebar.getBoundingClientRect();
 
-    let oldWidth = sourceImage.width * scale;
-    let oldHeight = sourceImage.height * scale;
-
-    let centerX = imgX + oldWidth / 2;
-    let centerY = imgY + oldHeight / 2;
-
-    scale -= e * 0.05;
-    scale = constrain(scale, minScale, maxScale);
-
-    let newWidth = sourceImage.width * scale;
-    let newHeight = sourceImage.height * scale;
-
-    imgX = centerX - newWidth / 2;
-    imgY = centerY - newHeight / 2;
-
-    redraw();
+  if (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  ) {
+    return false;
   }
+
+  if (sourceImage) {
+    let e = event.delta > 0 ? 1 : -1;
+    zoomAt(scale - e * 0.05);
+
+    loop();
+    clearTimeout(mouseWheelTimeout);
+    mouseWheelTimeout = setTimeout(() => {
+      noLoop();
+      redraw();
+    }, 100);
+  }
+
+  return false;
 }
 
+// ---------------------------------------------------------------------------
+// Touch input (mobile)
+// ---------------------------------------------------------------------------
+function touchStarted() {
+  if (touches.length === 2) {
+    lastPinchDist = dist(
+      touches[0].x, touches[0].y,
+      touches[1].x, touches[1].y
+    );
+    return false;
+  }
+
+  mousePressed();
+  return false;
+}
+
+function touchMoved() {
+  if (touches.length === 2 && lastPinchDist !== null) {
+    const d = dist(
+      touches[0].x, touches[0].y,
+      touches[1].x, touches[1].y
+    );
+    const delta = d - lastPinchDist;
+    zoomAt(scale + delta * 0.005);
+    lastPinchDist = d;
+    loop();
+    return false;
+  }
+
+  if (dragging && !isMouseOverUI()) {
+    imgX = mouseX - dragOffsetX;
+    imgY = mouseY - dragOffsetY;
+    loop();
+  }
+  return false;
+}
+
+function touchEnded() {
+  if (touches.length < 2) {
+    lastPinchDist = null;
+  }
+  dragging = false;
+  noLoop();
+  redraw();
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard shortcuts
+// ---------------------------------------------------------------------------
 function keyPressed() {
   if (key === 'p' || key === 'P') {
     if (!sourceImage) return;
     imagePlaced = true;
+    cachedFilteredImage = getFilteredImage();
     drawTiles();
     redraw();
     console.log("Image placed, tiles drawn.");
@@ -236,6 +438,9 @@ function keyPressed() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Save
+// ---------------------------------------------------------------------------
 function saveFinalImage() {
   let output = createGraphics(width, height);
 
@@ -253,34 +458,74 @@ function saveFinalImage() {
 
   output.image(tileLayer, 0, 0);
 
-  let filename = 'output-' + year() + nf(month(), 2) + nf(day(), 2) + '-' + nf(hour(), 2) + nf(minute(), 2) + nf(second(), 2) + '.png';
+  let filename = 'output-' +
+    year() + nf(month(), 2) + nf(day(), 2) + '-' +
+    nf(hour(), 2) + nf(minute(), 2) + nf(second(), 2) + '.png';
+
   output.save(filename);
   console.log("Saved " + filename);
 }
 
+// ---------------------------------------------------------------------------
+// Tiles
+// ---------------------------------------------------------------------------
 function drawTiles() {
   tileLayer.clear();
+
+  // No shape selected → leave the tile layer empty
+  if (tileShape === 'none') {
+    return;
+  }
+
   tileLayer.noStroke();
 
-  let cols = ceil(width / TILE_SIZE);
-  let rows = ceil(height / TILE_SIZE);
-
-  let gridHeight = rows * TILE_SIZE;
-  let offsetYGrid = (height - gridHeight) / 2;
+  let cols = ceil(width / tileSize);
+  let rows = ceil(height / tileSize);
+  let grid = [];
 
   for (let y = 0; y < rows; y++) {
+    grid[y] = [];
     for (let x = 0; x < cols; x++) {
-      if (random(1) < 0.1) {
-        let px = x * TILE_SIZE;
-        let py = offsetYGrid + y * TILE_SIZE;
+      let placeTile = false;
+
+      if (clusteringEnabled) {
+        let neighbors = 0;
+        if (x > 0 && grid[y][x - 1]) neighbors++;
+        if (y > 0 && grid[y - 1][x]) neighbors++;
+
+        let chance = tileDensity;
+        if (neighbors > 0) chance += 0.2;
+
+        placeTile = random(1) < chance;
+      } else {
+        placeTile = random(1) < tileDensity;
+      }
+
+      grid[y][x] = placeTile;
+
+      if (placeTile) {
+        let px = x * tileSize;
+        let py = y * tileSize;
 
         tileLayer.fill(colors[int(random(colors.length))]);
-        tileLayer.rect(px, py, TILE_SIZE, TILE_SIZE);
+
+        let variationAmount = tileSize * (tileVariationPercent / 100);
+        let sizeOffset = random(-variationAmount, variationAmount);
+        let actualSize = tileSize + sizeOffset;
+
+        if (tileShape === 'circles') {
+          tileLayer.ellipse(px + tileSize / 2, py + tileSize / 2, actualSize * 0.9);
+        } else {
+          tileLayer.rect(px, py, actualSize, actualSize);
+        }
       }
     }
   }
 }
 
+// ---------------------------------------------------------------------------
+// File input
+// ---------------------------------------------------------------------------
 function handleFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -302,6 +547,9 @@ function handleFile(event) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Reset position/scale
+// ---------------------------------------------------------------------------
 function resetImagePositionAndScale() {
   scale = width / sourceImage.width;
   minScale = scale * 0.5;
