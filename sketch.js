@@ -366,9 +366,24 @@ function mouseWheel(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch input (mobile)
+// Touch input (mobile) — only active on the canvas, not the sidebar
 // ---------------------------------------------------------------------------
+function isTouchOnCanvas(t) {
+  const canvas = document.querySelector('#canvasContainer canvas');
+  if (!canvas) return false;
+  const rect = canvas.getBoundingClientRect();
+  return (
+    t.x >= rect.left && t.x <= rect.right &&
+    t.y >= rect.top  && t.y <= rect.bottom
+  );
+}
+
 function touchStarted() {
+  // If the touch began on the sidebar, let the browser handle scrolling
+  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
+    return true; // don't preventDefault → native scroll works
+  }
+
   if (touches.length === 2) {
     lastPinchDist = dist(
       touches[0].x, touches[0].y,
@@ -382,6 +397,11 @@ function touchStarted() {
 }
 
 function touchMoved() {
+  // Ignore touch-moves that didn't start on the canvas
+  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
+    return true;
+  }
+
   if (touches.length === 2 && lastPinchDist !== null) {
     const d = dist(
       touches[0].x, touches[0].y,
@@ -403,6 +423,10 @@ function touchMoved() {
 }
 
 function touchEnded() {
+  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
+    return true;
+  }
+
   if (touches.length < 2) {
     lastPinchDist = null;
   }

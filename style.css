@@ -25,6 +25,7 @@ body {
   padding: 10px 20px;
   background: #f6f2df;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #canvasWrapper {
