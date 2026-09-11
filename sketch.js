@@ -368,22 +368,29 @@ function mouseWheel(event) {
 // ---------------------------------------------------------------------------
 // Touch input (mobile) — only active on the canvas, not the sidebar
 // ---------------------------------------------------------------------------
-function isTouchOnCanvas(t) {
-  const canvas = document.querySelector('#canvasContainer canvas');
-  if (!canvas) return false;
-  const rect = canvas.getBoundingClientRect();
-  return (
-    t.x >= rect.left && t.x <= rect.right &&
-    t.y >= rect.top  && t.y <= rect.bottom
-  );
-}
+let touchOnCanvasActive = false;
 
 function touchStarted() {
-  // If the touch began on the sidebar, let the browser handle scrolling
-  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
-    return true; // don't preventDefault → native scroll works
+  // Record whether the FIRST touch of this gesture landed on the canvas.
+  // We commit to that decision for the whole gesture so scrolling on the
+  // sidebar and dragging on the canvas don't fight each other mid-gesture.
+  if (touches.length === 1) {
+    const t = touches[0];
+    const canvas = document.querySelector('#canvasContainer canvas');
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      touchOnCanvasActive =
+        t.x >= rect.left && t.x <= rect.right &&
+        t.y >= rect.top  && t.y <= rect.bottom;
+    } else {
+      touchOnCanvasActive = false;
+    }
   }
 
+  // If the gesture started on the sidebar, do nothing and let the browser scroll
+  if (!touchOnCanvasActive) return true;
+
+  // Two-finger pinch start
   if (touches.length === 2) {
     lastPinchDist = dist(
       touches[0].x, touches[0].y,
@@ -392,16 +399,16 @@ function touchStarted() {
     return false;
   }
 
+  // Single-finger drag start
   mousePressed();
   return false;
 }
 
 function touchMoved() {
-  // Ignore touch-moves that didn't start on the canvas
-  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
-    return true;
-  }
+  // Browser is scrolling the sidebar — leave it alone
+  if (!touchOnCanvasActive) return true;
 
+  // Two-finger pinch
   if (touches.length === 2 && lastPinchDist !== null) {
     const d = dist(
       touches[0].x, touches[0].y,
@@ -414,6 +421,7 @@ function touchMoved() {
     return false;
   }
 
+  // Single-finger drag
   if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
@@ -423,7 +431,8 @@ function touchMoved() {
 }
 
 function touchEnded() {
-  if (touches.length > 0 && !isTouchOnCanvas(touches[0])) {
+  if (!touchOnCanvasActive) {
+    touchOnCanvasActive = false;
     return true;
   }
 
@@ -431,6 +440,7 @@ function touchEnded() {
     lastPinchDist = null;
   }
   dragging = false;
+  touchOnCanvasActive = false;
   noLoop();
   redraw();
   return false;
