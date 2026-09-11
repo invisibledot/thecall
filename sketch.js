@@ -334,6 +334,12 @@ function zoomAt(newScale) {
 // Mouse input (desktop — always active)
 // ---------------------------------------------------------------------------
 function mousePressed() {
+  // On touch devices, ignore unless we're in edit mode.
+  // (On desktop, editMode is always false and this check never triggers,
+  //  because we distinguish using the 'ontouchstart' capability below.)
+  const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouchDevice && !editMode) return;
+
   if (document.elementFromPoint(mouseX, mouseY)?.closest('#sidebar')) return;
 
   if (sourceImage) {
@@ -351,6 +357,8 @@ function mousePressed() {
 }
 
 function mouseDragged() {
+  const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouchDevice && !editMode) return;
   if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
@@ -359,6 +367,8 @@ function mouseDragged() {
 }
 
 function mouseReleased() {
+  const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouchDevice && !editMode) return;
   dragging = false;
   noLoop();
   redraw();
@@ -393,10 +403,13 @@ function mouseWheel(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch input (mobile — only fires in edit mode, because canvas has
-// pointer-events: none in browse mode)
+// Touch input (mobile) — ONLY active in edit mode.
+// p5 attaches its listeners to window, so CSS pointer-events alone can't
+// gate this. We check editMode explicitly and bail out otherwise.
 // ---------------------------------------------------------------------------
 function touchStarted() {
+  if (!editMode) return true; // let the browser handle it (scroll sidebar)
+
   if (touches.length === 2) {
     lastPinchDist = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
     return false;
@@ -406,6 +419,8 @@ function touchStarted() {
 }
 
 function touchMoved() {
+  if (!editMode) return true;
+
   if (touches.length === 2 && lastPinchDist !== null) {
     const d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
     zoomAt(scale + (d - lastPinchDist) * 0.005);
@@ -422,6 +437,13 @@ function touchMoved() {
 }
 
 function touchEnded() {
+  if (!editMode) {
+    // Reset transient state in case we entered/left mid-gesture
+    dragging = false;
+    lastPinchDist = null;
+    return true;
+  }
+
   if (touches.length < 2) lastPinchDist = null;
   dragging = false;
   noLoop();
