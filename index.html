@@ -9,6 +9,11 @@
 <body>
 
   <div id="sidebar">
+  <div id="sidebarScrollTop">
+    <button type="button" id="scrollUpBtn" class="scrollBtn" aria-label="Scroll up">▲</button>
+  </div>
+
+  <div id="sidebarContent">
     <h1>The Call Graphic Generator</h1>
     <h2>Controls</h2>
 
@@ -32,8 +37,6 @@
     <label for="tileVariation">Tile Size Variation (%)</label>
     <input type="range" id="tileVariation" min="0" max="50" value="0" step="10" />
 
-    <label><input type="checkbox" id="clusterToggle" /> Enable Tile Clustering</label>
-
     <label>Tile Shape</label>
     <div class="radioGroup">
       <label><input type="radio" name="tileShape" value="none"    checked /> None</label>
@@ -41,10 +44,17 @@
       <label><input type="radio" name="tileShape" value="circles" /> Circles</label>
     </div>
 
+    <label><input type="checkbox" id="clusterToggle" /> Enable Tile Clustering</label>
+
     <button id="drawTilesBtn">Render</button>
 
     <button id="saveImageBtn">Save Image</button>
   </div>
+
+  <div id="sidebarScrollBottom">
+    <button type="button" id="scrollDownBtn" class="scrollBtn" aria-label="Scroll down">▼</button>
+  </div>
+</div>
 
   <div id="canvasWrapper">
     <div id="canvasContainer"></div>

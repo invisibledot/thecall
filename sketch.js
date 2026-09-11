@@ -91,6 +91,28 @@ function updateControlAvailability() {
 }
 
 // ---------------------------------------------------------------------------
+// Mobile sidebar scroll buttons
+// ---------------------------------------------------------------------------
+function scrollSidebar(direction) {
+  const content = document.getElementById('sidebarContent');
+  if (!content) return;
+  const step = content.clientHeight * 0.8; // ~80% of visible height per tap
+  content.scrollBy({ top: direction * step, behavior: 'smooth' });
+}
+
+function updateScrollButtons() {
+  const content = document.getElementById('sidebarContent');
+  const upBtn = document.getElementById('scrollUpBtn');
+  const downBtn = document.getElementById('scrollDownBtn');
+  if (!content || !upBtn || !downBtn) return;
+
+  const atTop = content.scrollTop <= 2;
+  const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 2;
+  upBtn.style.opacity   = atTop    ? '0.35' : '1';
+  downBtn.style.opacity = atBottom ? '0.35' : '1';
+}
+
+// ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
 function setup() {
@@ -198,6 +220,18 @@ function setup() {
 
   // Initialize control state based on default tileShape ('none')
   updateControlAvailability();
+
+    // ---- Mobile sidebar scroll button wiring ----
+  const upBtn = document.getElementById('scrollUpBtn');
+  const downBtn = document.getElementById('scrollDownBtn');
+  const content = document.getElementById('sidebarContent');
+
+  if (upBtn)   upBtn.addEventListener('click', () => scrollSidebar(-1));
+  if (downBtn) downBtn.addEventListener('click', () => scrollSidebar(1));
+  if (content) content.addEventListener('scroll', updateScrollButtons);
+
+  window.addEventListener('resize', updateScrollButtons);
+  updateScrollButtons();
 }
 
 // ---------------------------------------------------------------------------
@@ -366,62 +400,25 @@ function mouseWheel(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch input (mobile) — only active on the canvas, not the sidebar
+// Touch input (mobile)
 // ---------------------------------------------------------------------------
-let touchOnCanvasActive = false;
-
 function touchStarted() {
-  // Record whether the FIRST touch of this gesture landed on the canvas.
-  // We commit to that decision for the whole gesture so scrolling on the
-  // sidebar and dragging on the canvas don't fight each other mid-gesture.
-  if (touches.length === 1) {
-    const t = touches[0];
-    const canvas = document.querySelector('#canvasContainer canvas');
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      touchOnCanvasActive =
-        t.x >= rect.left && t.x <= rect.right &&
-        t.y >= rect.top  && t.y <= rect.bottom;
-    } else {
-      touchOnCanvasActive = false;
-    }
-  }
-
-  // If the gesture started on the sidebar, do nothing and let the browser scroll
-  if (!touchOnCanvasActive) return true;
-
-  // Two-finger pinch start
   if (touches.length === 2) {
-    lastPinchDist = dist(
-      touches[0].x, touches[0].y,
-      touches[1].x, touches[1].y
-    );
+    lastPinchDist = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
     return false;
   }
-
-  // Single-finger drag start
   mousePressed();
   return false;
 }
 
 function touchMoved() {
-  // Browser is scrolling the sidebar — leave it alone
-  if (!touchOnCanvasActive) return true;
-
-  // Two-finger pinch
   if (touches.length === 2 && lastPinchDist !== null) {
-    const d = dist(
-      touches[0].x, touches[0].y,
-      touches[1].x, touches[1].y
-    );
-    const delta = d - lastPinchDist;
-    zoomAt(scale + delta * 0.005);
+    const d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+    zoomAt(scale + (d - lastPinchDist) * 0.005);
     lastPinchDist = d;
     loop();
     return false;
   }
-
-  // Single-finger drag
   if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
@@ -431,16 +428,8 @@ function touchMoved() {
 }
 
 function touchEnded() {
-  if (!touchOnCanvasActive) {
-    touchOnCanvasActive = false;
-    return true;
-  }
-
-  if (touches.length < 2) {
-    lastPinchDist = null;
-  }
+  if (touches.length < 2) lastPinchDist = null;
   dragging = false;
-  touchOnCanvasActive = false;
   noLoop();
   redraw();
   return false;

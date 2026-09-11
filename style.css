@@ -19,15 +19,50 @@ body {
   overflow: hidden;
 }
 
+/* ===== Sidebar ===== */
 #sidebar {
+  display: flex;
+  flex-direction: column;
   width: 280px;
   flex-shrink: 0;
-  padding: 10px 20px;
+  padding: 0;
   background: #f6f2df;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: 0;         /* lets it shrink inside the flex body */
 }
 
+/* Wrapper for the top scroll arrow. Collapses to 0 on desktop. */
+#sidebarScrollTop,
+#sidebarScrollBottom {
+  flex: 0 0 auto;
+  line-height: 0;        /* removes inline-block gap from the button */
+}
+
+/* The scrollable middle region */
+#sidebarContent {
+  flex: 1 1 auto;
+  min-height: 0;         /* critical for scrolling inside a flex column */
+  overflow-y: auto;
+  padding: 10px 20px;
+}
+
+/* ===== Scroll buttons (mobile only) ===== */
+.scrollBtn {
+  display: none;
+  width: 100%;
+  margin: 0;             /* override the global button margin-top */
+  padding: 10px;
+  font-size: 1.2em;
+  background: #e8e2cc;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.scrollBtn:active {
+  background: #d8d2bc;
+}
+
+/* ===== Canvas area ===== */
 #canvasWrapper {
   flex: 1 1 auto;
   min-width: 0;
@@ -41,8 +76,6 @@ body {
 }
 
 #canvasContainer {
-  /* p5 injects its <canvas> here. We let p5 keep its internal 1200x628
-     pixel buffer, and CSS scales it to fit the wrapper. */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,7 +131,7 @@ button {
   cursor: pointer;
 }
 
-/* ===== Mobile layout: canvas on top, controls below ===== */
+/* ===== Mobile layout ===== */
 @media (max-width: 768px) {
   body {
     flex-direction: column;
@@ -107,7 +140,7 @@ button {
   #canvasWrapper {
     flex: 0 0 auto;
     width: 100vw;
-    height: 52.33vw;      /* 628 / 1200 * 100 */
+    height: 52.33vw;
     max-height: 60vh;
     padding: 0;
     order: 1;
@@ -117,7 +150,23 @@ button {
     width: 100%;
     flex: 1 1 auto;
     order: 2;
+    min-height: 0;
+  }
+
+  /* Show the scroll arrows on mobile */
+  .scrollBtn {
+    display: block;
+  }
+
+  /* Keep the content scrollable so scrollBy() works, but hide the
+     native scrollbar so the arrows are the visible affordance. */
+  #sidebarContent {
     overflow-y: auto;
+    scrollbar-width: none;        /* Firefox */
     -webkit-overflow-scrolling: touch;
+  }
+
+  #sidebarContent::-webkit-scrollbar {
+    display: none;                /* Chrome/Safari */
   }
 }
