@@ -35,6 +35,10 @@ let redrawTimeout;
 // Pinch-zoom state for touch
 let lastPinchDist = null;
 
+// Mobile edit mode: browse = sidebar interactive, canvas inert.
+//                  edit   = canvas interactive, sidebar locked.
+let editMode = false;
+
 // ---------------------------------------------------------------------------
 // Filter cache
 // ---------------------------------------------------------------------------
@@ -66,7 +70,7 @@ function isMouseOverUI() {
 // ---------------------------------------------------------------------------
 function updateControlAvailability() {
   const tileControlsDisabled = (tileShape === 'none');
-  const clusterDisabled = tileControlsDisabled; // clustering makes no sense without tiles
+  const clusterDisabled = tileControlsDisabled;
 
   ['tileSize', 'density', 'tileVariation'].forEach(id => {
     const el = document.getElementById(id);
@@ -76,12 +80,10 @@ function updateControlAvailability() {
   const clusterEl = document.getElementById('clusterToggle');
   if (clusterEl) {
     clusterEl.disabled = clusterDisabled;
-    // Visually grey out the label too
     const label = clusterEl.closest('label');
     if (label) label.style.opacity = clusterDisabled ? '0.5' : '1';
   }
 
-  // Also grey the labels of the sliders for visual consistency
   ['tileSize', 'density', 'tileVariation'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -91,25 +93,22 @@ function updateControlAvailability() {
 }
 
 // ---------------------------------------------------------------------------
-// Mobile sidebar scroll buttons
+// Mobile edit mode
 // ---------------------------------------------------------------------------
-function scrollSidebar(direction) {
-  const content = document.getElementById('sidebarContent');
-  if (!content) return;
-  const step = content.clientHeight * 0.8; // ~80% of visible height per tap
-  content.scrollBy({ top: direction * step, behavior: 'smooth' });
+function enterEditMode() {
+  editMode = true;
+  document.body.classList.add('edit-mode');
+  // Canvas DOM size changes with CSS; p5 will pick it up on resize,
+  // but force a redraw to be safe.
+  redraw();
 }
 
-function updateScrollButtons() {
-  const content = document.getElementById('sidebarContent');
-  const upBtn = document.getElementById('scrollUpBtn');
-  const downBtn = document.getElementById('scrollDownBtn');
-  if (!content || !upBtn || !downBtn) return;
-
-  const atTop = content.scrollTop <= 2;
-  const atBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 2;
-  upBtn.style.opacity   = atTop    ? '0.35' : '1';
-  downBtn.style.opacity = atBottom ? '0.35' : '1';
+function exitEditMode() {
+  editMode = false;
+  document.body.classList.remove('edit-mode');
+  dragging = false;
+  noLoop();
+  redraw();
 }
 
 // ---------------------------------------------------------------------------
@@ -218,20 +217,14 @@ function setup() {
     saveFinalImage();
   });
 
+  // --- Mobile edit mode buttons (null-guarded) ---
+  const editBtn = document.getElementById('editModeBtn');
+  const doneBtn = document.getElementById('doneModeBtn');
+  if (editBtn) editBtn.addEventListener('click', enterEditMode);
+  if (doneBtn) doneBtn.addEventListener('click', exitEditMode);
+
   // Initialize control state based on default tileShape ('none')
   updateControlAvailability();
-
-    // ---- Mobile sidebar scroll button wiring ----
-  const upBtn = document.getElementById('scrollUpBtn');
-  const downBtn = document.getElementById('scrollDownBtn');
-  const content = document.getElementById('sidebarContent');
-
-  if (upBtn)   upBtn.addEventListener('click', () => scrollSidebar(-1));
-  if (downBtn) downBtn.addEventListener('click', () => scrollSidebar(1));
-  if (content) content.addEventListener('scroll', updateScrollButtons);
-
-  window.addEventListener('resize', updateScrollButtons);
-  updateScrollButtons();
 }
 
 // ---------------------------------------------------------------------------
@@ -307,7 +300,7 @@ function multiplyBlend(pg, bgColorStr) {
   let bgB = blue(bgCol);
 
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    pg.pixels[i] = (pg.pixels[i] * bgR) / 255;
+    pg.pixels[i]     = (pg.pixels[i]     * bgR) / 255;
     pg.pixels[i + 1] = (pg.pixels[i + 1] * bgG) / 255;
     pg.pixels[i + 2] = (pg.pixels[i + 2] * bgB) / 255;
   }
@@ -338,7 +331,7 @@ function zoomAt(newScale) {
 }
 
 // ---------------------------------------------------------------------------
-// Mouse input
+// Mouse input (desktop — always active)
 // ---------------------------------------------------------------------------
 function mousePressed() {
   if (document.elementFromPoint(mouseX, mouseY)?.closest('#sidebar')) return;
@@ -400,7 +393,8 @@ function mouseWheel(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch input (mobile)
+// Touch input (mobile — only fires in edit mode, because canvas has
+// pointer-events: none in browse mode)
 // ---------------------------------------------------------------------------
 function touchStarted() {
   if (touches.length === 2) {
@@ -433,6 +427,15 @@ function touchEnded() {
   noLoop();
   redraw();
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// Window resize — refit things when the canvas DOM size changes
+// ---------------------------------------------------------------------------
+function windowResized() {
+  // The p5 canvas has a fixed internal size; only the DOM size changes.
+  // We just redraw so overlay state is consistent.
+  redraw();
 }
 
 // ---------------------------------------------------------------------------

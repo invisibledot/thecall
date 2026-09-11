@@ -27,43 +27,19 @@ body {
   flex-shrink: 0;
   padding: 0;
   background: #f6f2df;
-  min-height: 0;         /* lets it shrink inside the flex body */
+  min-height: 0;
 }
 
-/* Wrapper for the top scroll arrow. Collapses to 0 on desktop. */
-#sidebarScrollTop,
-#sidebarScrollBottom {
-  flex: 0 0 auto;
-  line-height: 0;        /* removes inline-block gap from the button */
-}
-
-/* The scrollable middle region */
 #sidebarContent {
   flex: 1 1 auto;
-  min-height: 0;         /* critical for scrolling inside a flex column */
+  min-height: 0;
   overflow-y: auto;
   padding: 10px 20px;
 }
 
-/* ===== Scroll buttons (mobile only) ===== */
-.scrollBtn {
-  display: none;
-  width: 100%;
-  margin: 0;             /* override the global button margin-top */
-  padding: 10px;
-  font-size: 1.2em;
-  background: #e8e2cc;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-}
-
-.scrollBtn:active {
-  background: #d8d2bc;
-}
-
 /* ===== Canvas area ===== */
 #canvasWrapper {
+  position: relative;              /* anchor for overlay buttons */
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -90,8 +66,45 @@ body {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  touch-action: none;
+  touch-action: none;              /* only here — nowhere else */
 }
+
+/* ===== Overlay buttons (mobile only) ===== */
+.overlayBtn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: auto;
+  padding: 10px 16px;
+  margin: 0;
+  font-size: 0.95em;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  pointer-events: auto;            /* always tappable */
+}
+
+#doneModeBtn {
+  top: 12px;
+  bottom: auto;
+  background: #329758;
+}
+
+/* Hide overlay buttons on desktop */
+@media (min-width: 769px) {
+  .overlayBtn { display: none; }
+}
+
+/* Show the right button for the current mode (mobile only) */
+body:not(.edit-mode) #editModeBtn { display: block; }
+body:not(.edit-mode) #doneModeBtn { display: none;  }
+
+body.edit-mode       #editModeBtn { display: none;  }
+body.edit-mode       #doneModeBtn { display: block; }
 
 /* ===== Form styling ===== */
 label {
@@ -140,10 +153,11 @@ button {
   #canvasWrapper {
     flex: 0 0 auto;
     width: 100vw;
-    height: 52.33vw;
+    height: 52.33vw;              /* matches 1200:628 aspect ratio */
     max-height: 60vh;
     padding: 0;
     order: 1;
+    transition: height 0.2s ease, max-height 0.2s ease;
   }
 
   #sidebar {
@@ -153,20 +167,29 @@ button {
     min-height: 0;
   }
 
-  /* Show the scroll arrows on mobile */
-  .scrollBtn {
-    display: block;
-  }
-
-  /* Keep the content scrollable so scrollBy() works, but hide the
-     native scrollbar so the arrows are the visible affordance. */
   #sidebarContent {
-    overflow-y: auto;
-    scrollbar-width: none;        /* Firefox */
     -webkit-overflow-scrolling: touch;
   }
+}
 
-  #sidebarContent::-webkit-scrollbar {
-    display: none;                /* Chrome/Safari */
+/* ===== Browse mode on mobile: canvas ignores touch ===== */
+@media (max-width: 768px) {
+  body:not(.edit-mode) #canvasContainer {
+    pointer-events: none;
+  }
+}
+
+/* ===== Edit mode (mobile): sidebar locked, canvas expands ===== */
+@media (max-width: 768px) {
+  body.edit-mode #sidebar {
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.4;
+  }
+
+  body.edit-mode #canvasWrapper {
+    flex: 1 1 auto;
+    height: auto;
+    max-height: none;
   }
 }
