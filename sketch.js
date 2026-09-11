@@ -35,10 +35,6 @@ let redrawTimeout;
 // Pinch-zoom state for touch
 let lastPinchDist = null;
 
-// Mobile edit mode: browse = sidebar interactive, canvas inert.
-//                  edit   = canvas interactive, sidebar locked.
-let editMode = false;
-
 // ---------------------------------------------------------------------------
 // Filter cache
 // ---------------------------------------------------------------------------
@@ -70,7 +66,7 @@ function isMouseOverUI() {
 // ---------------------------------------------------------------------------
 function updateControlAvailability() {
   const tileControlsDisabled = (tileShape === 'none');
-  const clusterDisabled = tileControlsDisabled;
+  const clusterDisabled = tileControlsDisabled; // clustering makes no sense without tiles
 
   ['tileSize', 'density', 'tileVariation'].forEach(id => {
     const el = document.getElementById(id);
@@ -80,35 +76,18 @@ function updateControlAvailability() {
   const clusterEl = document.getElementById('clusterToggle');
   if (clusterEl) {
     clusterEl.disabled = clusterDisabled;
+    // Visually grey out the label too
     const label = clusterEl.closest('label');
     if (label) label.style.opacity = clusterDisabled ? '0.5' : '1';
   }
 
+  // Also grey the labels of the sliders for visual consistency
   ['tileSize', 'density', 'tileVariation'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const label = document.querySelector(`label[for="${id}"]`);
     if (label) label.style.opacity = tileControlsDisabled ? '0.5' : '1';
   });
-}
-
-// ---------------------------------------------------------------------------
-// Mobile edit mode
-// ---------------------------------------------------------------------------
-function enterEditMode() {
-  editMode = true;
-  document.body.classList.add('edit-mode');
-  // Canvas DOM size changes with CSS; p5 will pick it up on resize,
-  // but force a redraw to be safe.
-  redraw();
-}
-
-function exitEditMode() {
-  editMode = false;
-  document.body.classList.remove('edit-mode');
-  dragging = false;
-  noLoop();
-  redraw();
 }
 
 // ---------------------------------------------------------------------------
@@ -217,12 +196,6 @@ function setup() {
     saveFinalImage();
   });
 
-  // --- Mobile edit mode buttons (null-guarded) ---
-  const editBtn = document.getElementById('editModeBtn');
-  const doneBtn = document.getElementById('doneModeBtn');
-  if (editBtn) editBtn.addEventListener('click', enterEditMode);
-  if (doneBtn) doneBtn.addEventListener('click', exitEditMode);
-
   // Initialize control state based on default tileShape ('none')
   updateControlAvailability();
 }
@@ -300,7 +273,7 @@ function multiplyBlend(pg, bgColorStr) {
   let bgB = blue(bgCol);
 
   for (let i = 0; i < pg.pixels.length; i += 4) {
-    pg.pixels[i]     = (pg.pixels[i]     * bgR) / 255;
+    pg.pixels[i] = (pg.pixels[i] * bgR) / 255;
     pg.pixels[i + 1] = (pg.pixels[i + 1] * bgG) / 255;
     pg.pixels[i + 2] = (pg.pixels[i + 2] * bgB) / 255;
   }
@@ -331,7 +304,7 @@ function zoomAt(newScale) {
 }
 
 // ---------------------------------------------------------------------------
-// Mouse input (desktop — always active)
+// Mouse input
 // ---------------------------------------------------------------------------
 function mousePressed() {
   if (document.elementFromPoint(mouseX, mouseY)?.closest('#sidebar')) return;
@@ -393,26 +366,34 @@ function mouseWheel(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Touch input (mobile — only fires in edit mode, because canvas has
-// pointer-events: none in browse mode)
+// Touch input (mobile)
 // ---------------------------------------------------------------------------
 function touchStarted() {
   if (touches.length === 2) {
-    lastPinchDist = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
+    lastPinchDist = dist(
+      touches[0].x, touches[0].y,
+      touches[1].x, touches[1].y
+    );
     return false;
   }
+
   mousePressed();
   return false;
 }
 
 function touchMoved() {
   if (touches.length === 2 && lastPinchDist !== null) {
-    const d = dist(touches[0].x, touches[0].y, touches[1].x, touches[1].y);
-    zoomAt(scale + (d - lastPinchDist) * 0.005);
+    const d = dist(
+      touches[0].x, touches[0].y,
+      touches[1].x, touches[1].y
+    );
+    const delta = d - lastPinchDist;
+    zoomAt(scale + delta * 0.005);
     lastPinchDist = d;
     loop();
     return false;
   }
+
   if (dragging && !isMouseOverUI()) {
     imgX = mouseX - dragOffsetX;
     imgY = mouseY - dragOffsetY;
@@ -422,20 +403,13 @@ function touchMoved() {
 }
 
 function touchEnded() {
-  if (touches.length < 2) lastPinchDist = null;
+  if (touches.length < 2) {
+    lastPinchDist = null;
+  }
   dragging = false;
   noLoop();
   redraw();
   return false;
-}
-
-// ---------------------------------------------------------------------------
-// Window resize — refit things when the canvas DOM size changes
-// ---------------------------------------------------------------------------
-function windowResized() {
-  // The p5 canvas has a fixed internal size; only the DOM size changes.
-  // We just redraw so overlay state is consistent.
-  redraw();
 }
 
 // ---------------------------------------------------------------------------
